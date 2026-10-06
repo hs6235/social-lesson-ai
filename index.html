@@ -741,42 +741,67 @@
     }
 
     // Call Gemini API with exponential backoff
-    async function callGeminiApi(payload, maxRetries = 3) {
-      const userKey = getStoredApiKey();
-      const apiKey = userKey || "";
+    async function callGeminiApi(payload, maxRetries = 2) {
+      const apiKey = getStoredApiKey();
 
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${apiKey}`;
-      let delay = 1000;
+      if (!apiKey) {
+        openApiKeyModal();
+        throw new Error("請先點擊右上角【⚙️ 齒輪按鈕】設定您的免費 Gemini API Key，即可發動 AI 生成！");
+      }
 
-      for (let attempt = 0; attempt < maxRetries; attempt++) {
-        try {
-          const response = await fetch(apiUrl, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(payload)
-          });
-          if (response.status === 429) {
-            await new Promise(resolve => setTimeout(resolve, delay));
-            delay *= 2;
-            continue;
-          }
-          if (!response.ok) {
-            let errorDetails = "";
-            try {
-              const errData = await response.json();
-              errorDetails = errData?.error?.message || response.statusText;
-            } catch (e) {
-              errorDetails = response.statusText;
+      // Try multiple models for maximum compatibility across all API Key tiers
+      const modelsToTry = [
+        "gemini-2.5-flash",
+        "gemini-1.5-flash",
+        "gemini-3-flash-preview"
+      ];
+
+      let lastError = null;
+
+      for (const model of modelsToTry) {
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+
+        for (let attempt = 0; attempt < maxRetries; attempt++) {
+          try {
+            const response = await fetch(apiUrl, {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify(payload)
+            });
+
+            if (response.status === 429) {
+              await new Promise(resolve => setTimeout(resolve, 1000 * (attempt + 1)));
+              continue;
             }
-            throw new Error(`API_ERROR: ${response.status} - ${errorDetails}`);
+
+            if (!response.ok) {
+              let errorDetails = "";
+              try {
+                const errData = await response.json();
+                errorDetails = errData?.error?.message || response.statusText;
+              } catch (e) {
+                errorDetails = response.statusText;
+              }
+              lastError = new Error(`[${model}] ${response.status}: ${errorDetails}`);
+              // If status is 400 or 404 (model issue or invalid key format), try next model
+              if (response.status === 400 || response.status === 404) {
+                break;
+              }
+              continue;
+            }
+
+            const data = await response.json();
+            if (data?.candidates?.[0]?.content?.parts?.[0]?.text) {
+              return data;
+            }
+          } catch (err) {
+            lastError = err;
+            await new Promise(resolve => setTimeout(resolve, 1000));
           }
-          return await response.json();
-        } catch (err) {
-          if (attempt === maxRetries - 1) throw err;
-          await new Promise(resolve => setTimeout(resolve, delay));
-          delay *= 2;
         }
       }
+
+      throw lastError || new Error("呼叫 AI 失敗，請確認 API Key 是否正確與網路狀態");
     }
 
     function setViewMode(mode) {
@@ -1244,7 +1269,7 @@
           setViewMode('preview');
         }
       } catch (err) {
-        showToast("生成過程發生問題，已切換至對應模版", "error");
+        showToast(err.message || "生成過程發生問題，已切換至對應模版", "error");
         renderWorksheet();
       } finally {
         btn.innerHTML = originalHtml;
