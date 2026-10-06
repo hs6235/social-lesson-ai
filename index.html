@@ -552,6 +552,255 @@
   </div>
 
   <script>
+    
+    // API Key & Grade Presets Management
+    const gradePresets = {
+      '5u_kanghsuan_climate': {
+        unit: '氣候如何影響我們的生活？—地理位置與季風影響',
+        summary: '臺灣位於歐亞大陸與太平洋交界，夏秋受颱風與季風影響，冬季受東北季風（北部溼冷、南部乾爽），夏季受西南季風（中南部溼熱），並帶動沿海風力發電與多元生活調適。',
+        strategy: 'fishbone'
+      },
+      '4u_hanlin_geography': {
+        unit: '家鄉的地理環境—山地、平原與河川對生活的影響',
+        summary: '探究家鄉常見地形（平原、盆地、台地、山地）特徵，了解早期先民沿著河川聚落發展與農業灌溉（如瑠公圳、八堡圳）的歷史智慧，以及現代水資源保育課題。',
+        strategy: 'venn'
+      },
+      '5d_nani_history': {
+        unit: '臺灣的歷史演變—從大航海時代、清領時期到現代多元文化',
+        summary: '梳理原住民傳統文化、荷西時期貿易、漢人移民拓墾歷史與日治時期基礎建設，觀察不同時代遺跡對現代社會飲食、建築與節慶文化交融的深化影響。',
+        strategy: 'timeline'
+      },
+      '6u_kanghsuan_global': {
+        unit: '全球化趨勢與地球村—永續發展目標 (SDGs) 與國際合作',
+        summary: '探究全球化下的氣候變遷、國際貿易與文化交流現象，思考氣候難民與極端氣候問題，培養學生從小在生活中實踐綠色消費與國際志工的地球村公民素養。',
+        strategy: 'critical'
+      },
+      '3d_hanlin_community': {
+        unit: '我們居住的地方—社區公共設施與公共服務實踐',
+        summary: '觀察居住社區中的公園、圖書館、派出所與活動中心等公共設施，了解里長與志工維護社區環境的付出，引導學童思考自己能為社區服務做些什麼。',
+        strategy: '5w1h'
+      }
+    };
+
+    function getStoredApiKey() {
+      return localStorage.getItem('GEMINI_USER_API_KEY') || "";
+    }
+
+    function openApiKeyModal() {
+      const input = document.getElementById('custom-api-key-input');
+      if (input) input.value = getStoredApiKey();
+      const modal = document.getElementById('api-key-modal');
+      if (modal) modal.classList.remove('hidden');
+    }
+
+    function closeApiKeyModal() {
+      const modal = document.getElementById('api-key-modal');
+      if (modal) modal.classList.add('hidden');
+    }
+
+    function saveApiKey() {
+      const input = document.getElementById('custom-api-key-input');
+      const key = input ? input.value.trim() : "";
+      if (key) {
+        localStorage.setItem('GEMINI_USER_API_KEY', key);
+        showToast("✨ Gemini API Key 已成功儲存於您的瀏覽器！", "success");
+      } else {
+        localStorage.removeItem('GEMINI_USER_API_KEY');
+        showToast("已重置金鑰設定", "info");
+      }
+      closeApiKeyModal();
+    }
+
+    function applyGradePreset(key) {
+      if (!key || !gradePresets[key]) return;
+      const data = gradePresets[key];
+      document.getElementById('input-unit').value = data.unit;
+      document.getElementById('input-summary').value = data.summary;
+      
+      const radio = document.querySelector("input[name='strategy'][value='" + data.strategy + "']");
+      if (radio) {
+        radio.checked = true;
+        radio.dispatchEvent(new Event('change'));
+      }
+      showToast('已載入課程選單範本：' + data.unit.split('—')[0], 'success');
+      renderWorksheet();
+    }
+
+    function exportToWord() {
+      const printArea = document.getElementById('print-area');
+      if (!printArea) {
+        showToast('找不到學習單內容', 'error');
+        return;
+      }
+      
+      const content = printArea.innerHTML;
+      const unitTitle = document.getElementById('input-unit').value || '國小社會科素養學習單';
+      
+      const header = `<html xmlns:o="urn:schemas-microsoft-microsoft-com:office:office" xmlns:w="urn:schemas-microsoft-microsoft-com:office:word" xmlns="http://www.w3.org/TR/REC-html40"><head><meta charset="utf-8"><title>${unitTitle}</title><style>body { font-family: "Noto Sans TC", "微軟正黑體", sans-serif; font-size: 11pt; line-height: 1.4; color: #1e293b; } h1 { font-family: "Noto Serif TC", "標楷體", serif; font-size: 18pt; text-align: center; color: #0f172a; margin-bottom: 8px; } .serif-title { font-family: "Noto Serif TC", "標楷體", serif; font-size: 18pt; text-align: center; } table { width: 100%; border-collapse: collapse; margin-top: 10px; margin-bottom: 10px; } th, td { border: 1px solid #cbd5e1; padding: 6px 8px; text-align: left; vertical-align: top; } .write-line { border-bottom: 1px dashed #94a3b8; height: 22px; margin-top: 3px; } .bg-amber-50 { background-color: #fffbeb; border-left: 4px solid #f59e0b; padding: 8px; margin-bottom: 8px; } .strategy-guide-badge { font-weight: bold; color: #047857; background: #ecfdf5; padding: 2px 6px; border-radius: 4px; }</style></head><body>`;
+      const footer = "</body></html>";
+      const fullDoc = header + content + footer;
+
+      const blob = new Blob(['\ufeff', fullDoc], { type: 'application/msword;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = unitTitle.replace(/[^a-zA-Z0-9\u4e00-\u9fa5]/g, '_') + '_素養學習單.doc';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      
+      showToast('✨ 已成功導出 Word 檔 (.doc)，您可以在 Word 中進行彈性微調！', 'success');
+    }
+
+    
+    // Smart Quota-Safe Fallback Generator (0 quota cost, instant 0.1s synthesis)
+    function generateSmartFallbackWorksheet(unit, summary, strategy) {
+      const meta = strategyDescriptions[strategy] || { name: "學習策略", instruction: "依據主題結構進行整理分析。" };
+      const displayUnit = unit || "國小社會科素養導向深度探究單元";
+
+      let blocks = [];
+      if (strategy === 'fishbone') {
+        blocks = [
+          { title: "主因一：自然條件與地理環境", prompt: `請分析影響「${displayUnit}」的核心自然條件與地理因素？`, subHint: "關注位置、氣候、地形或水資源", linesCount: 2 },
+          { title: "主因二：歷史發展與人文活動", prompt: `請說明先民或社會發展如何推動「${displayUnit}」的演變？`, subHint: "關注聚落、產業歷史或文化交流", linesCount: 2 },
+          { title: "影響一：日常生活與地方產業", prompt: "此現象對我們日常飲食、居住、交通或產業產生何種具體影響？", subHint: "關注地方生活智慧與產業特色", linesCount: 2 },
+          { title: "影響二：永續發展與環境調適", prompt: "面對極端變化或社會變遷，現代公民應如何進行適應與永續發展？", subHint: "關注防災、保育或永續實踐", linesCount: 2 }
+        ];
+      } else if (strategy === '5w1h') {
+        blocks = [
+          { title: "Who（何人族群）", prompt: "本單元涉及的核心人物、先民族群或社會組織有哪些？", subHint: "關注在地居民、先民或行政服務", linesCount: 1 },
+          { title: "When & Where（時間與空間）", prompt: "探究事件發生的歷史時期脈絡與地理空間特徵為何？", subHint: "關注歷史年代或區域地形", linesCount: 1 },
+          { title: "What & Why（事件與成因）", prompt: `發生的核心現象「${displayUnit}」是什麼？其背後成因為何？`, subHint: "關注因果關係與環境互動", linesCount: 2 },
+          { title: "How（調適做法與結果）", prompt: "人們如何回應此現象？對現代生活與永續發展帶來什麼結果？", subHint: "關注生活智慧與公民行動", linesCount: 2 }
+        ];
+      } else if (strategy === 'timeline') {
+        blocks = [
+          { title: "早期階段：起源與環境背景", prompt: `在早期歷史脈絡中，「${displayUnit}」的萌芽與環境條件為何？`, subHint: "關注先民拓墾或早期地理背景", linesCount: 2 },
+          { title: "發展階段：產業與社會變遷", prompt: "隨著時代演進，社會產生了哪些重大產業、建設或文化轉變？", subHint: "關注技術引進或社會制度演變", linesCount: 2 },
+          { title: "現代階段：多元融合與挑戰", prompt: "到了現代社會，此現象呈現何種多元風貌與新型態挑戰？", subHint: "關注全球化、在地化或環境課題", linesCount: 2 },
+          { title: "未來展望：永續與傳承行動", prompt: "展望未來，我們該如何傳承優良文化並因應未來的環境變遷？", subHint: "關注永續發展與公民責任", linesCount: 2 }
+        ];
+      } else {
+        blocks = [
+          { title: "一、現象觀察與核心事實擷取", prompt: `請根據課本內容，列出「${displayUnit}」的核心特徵與重要事實？`, subHint: "擷取關鍵字與課文重點", linesCount: 2 },
+          { title: "二、因果脈絡與環境互動分析", prompt: "請分析環境條件與社會發展之間的交互影響關係為何？", subHint: "比較不同面向的影響", linesCount: 2 },
+          { title: "三、多元立場與認知衝突討論", prompt: "此現象帶來哪些正面效益與潛在挑戰或影響？", subHint: "跳脫單一成因思維", linesCount: 2 },
+          { title: "四、因地制宜與公民實踐調適", prompt: "身為在地與地球村公民，我們在生活中可以採取什麼具體行動？", subHint: "連結日常生活與永續實踐", linesCount: 2 }
+        ];
+      }
+
+      const criticalThinkingQuestions = [
+        { title: "思辨探究一", question: `關於「${displayUnit}」，如果條件發生改變，對地方發展會帶來優點還是缺點？請說明你的理由。`, linesCount: 2 },
+        { title: "思辨探究二", question: "在追求地方經濟發展與自然環境保育之間，我們該如何取得最佳平衡？", linesCount: 2 }
+      ];
+
+      const selCivicReflection = {
+        title: "公民生活實踐與社會情緒反思 (SEL)",
+        question: `了解「${displayUnit}」後，你在日常生活中能做些什麼來展現對居住環境與社會文化的關懷與責任？`,
+        linesCount: 2
+      };
+
+      const curriculumStandards = {
+        coreCompetencies: [
+          "社-E-A2 敏覺居住地方的社會、自然與人文環境變遷，關注生活問題及其影響，並思考解決方法。",
+          "社-E-B1 透過語言、文字及圖像等表徵符號，理解人類生活的豐富面貌，並能運用多樣符號解釋訊息。",
+          "社-E-C1 培養良好的生活習慣，理解並遵守社會規範，養成社會責任感與關懷永續發展。"
+        ],
+        learningPerformances: [
+          "1b-III-2 理解各種事實或社會現象的關係，並歸納出其間的關係或規律性。",
+          "1c-III-2 檢視社會現象或事件之間的關係，並想像在不同條件下推測可能發展。",
+          "2a-III-1 關注社會、自然、人文環境與生活方式的互動關係。"
+        ],
+        learningContents: [
+          "Ab-III-1 臺灣地理位置、自然環境與歷史文化的發展有關聯性。",
+          "Ab-III-3 自然環境、自然災害及經濟活動，和生活空間的使用有關聯性。",
+          "Bb-III-1 自然與人文環境的交互影響，造成生活空間型態的差異與多元。"
+        ]
+      };
+
+      const teacherGuide = {
+        coreConcepts: [
+          `理解「${displayUnit}」的核心地理、歷史或社會變遷成因`,
+          "跳脫單一成因思維：引導學生從多元視角剖析效益與挑戰的複合影響",
+          "因地制宜與永續實踐：連結學生切身生活經驗進行態度與行動反思"
+        ],
+        expectedAnswers: [
+          "能運用指定學習策略正確擷取課本核心事實，並說明因果關係",
+          "能提出理性辯證：兼顧環境保育、文化傳承與地方經濟發展之平衡視角"
+        ],
+        pedagogicalAdvice: `教學引導時，可投影「${displayUnit}」相關生活新聞或圖片，引發學童認知衝突，並透過小組拼圖討論進行思辨。`,
+        lessonPlan40Min: [
+          {
+            stage: "起：引起動機與情境導入",
+            timeMinutes: "5 分鐘",
+            activity: `投影「探究前哨站」生活情境故事，引導學童連結日常經驗與「${displayUnit}」的認知衝突。`,
+            teacherQuestions: [
+              `大家在日常生活中，有觀察到和「${displayUnit}」相關的哪些現象？`,
+              "這些現象給我們的生活帶來了什麼影響？"
+            ],
+            expectedStudentAnswers: [
+              "分享生活中的觀察經驗與直覺感受。",
+              "點出環境或社會變化帶來的便利與潛在困擾。"
+            ],
+            teacherTips: "鼓勵學童直抒己見，著重激發對社會與環境現象的好奇心。"
+          },
+          {
+            stage: "承：事實梳理與策略圖表填寫",
+            timeMinutes: "10 分鐘",
+            activity: `指導學生閱讀課文，運用「${meta.name}」梳理核心事實與因果脈絡。`,
+            teacherQuestions: [
+              "請根據課本內容，影響本單元現象的最主要成因或背景因素是什麼？",
+              "這些因素如何相互作用並影響地方發展？"
+            ],
+            expectedStudentAnswers: [
+              "能正確講出課文中提到的自然條件、歷史背景或社會組織。",
+              "能將次概念填寫至學習策略圖表中。"
+            ],
+            teacherTips: "巡視指導低成就學童擷取課文關鍵字，建立概念支架。"
+          },
+          {
+            stage: "轉：組內探究與高階思辨辯證",
+            timeMinutes: "15 分鐘",
+            activity: "分組討論學習單上的思辨探究問句與 SEL 公民生活實踐題。",
+            teacherQuestions: [
+              "如果條件發生改變，會帶來優點還是缺點？我們該如何取得平衡？",
+              "身為國小學生，我們在日常生活中能採取什麼具體調適行動？"
+            ],
+            expectedStudentAnswers: [
+              "提出具備批判性的多元立場與折衷考量。",
+              "分享家庭節能、保育或社區參與的具體做法。"
+            ],
+            teacherTips: "採小組討論，鼓勵學生說明『為什麼這樣想』，注重論述品質。"
+          },
+          {
+            stage: "合：發表分享與 Rubrics 素養評量",
+            timeMinutes: "10 分鐘",
+            activity: "小組代表發表探究成果，教師運用三等第 Rubrics 規準給予回饋與觀念總結。",
+            teacherQuestions: [
+              "請各組總結：我們應該如何以永續與包容的態度回應此社會現象？"
+            ],
+            expectedStudentAnswers: [
+              "歸納出因地制宜、尊重多元與環境共榮的素養價值。"
+            ],
+            teacherTips: "根據 Rubrics 三等第表現指標給予回饋與觀課紀錄。"
+          }
+        ]
+      };
+
+      return {
+        unitTitle: displayUnit,
+        inquiryScenario: summary ? `探究情境觀察：${summary}` : `歡迎來到「${displayUnit}」探究前哨站！請觀察生活中相關的地理、歷史與社會現象，思考人類活動與自然環境之間如何相互影響與調適。`,
+        strategyCoreTitle: displayUnit,
+        strategyFrameworkPrompt: meta.name + "整理分析",
+        blocks: blocks,
+        criticalThinkingQuestions: criticalThinkingQuestions,
+        selCivicReflection: selCivicReflection,
+        curriculumStandards: curriculumStandards,
+        teacherGuide: teacherGuide
+      };
+    }
+
     /* State Management */
     let uploadedImageBase64 = null;
     let uploadedImageMimeType = "image/jpeg";
@@ -988,6 +1237,134 @@
     }
 
     /* Primary Worksheet Rendering Function */
+    
+    function renderAiWorksheet(data, strategy) {
+      const printArea = document.getElementById('print-area');
+      const badge = document.getElementById('worksheet-source-badge');
+      if (badge) {
+        badge.className = "text-[10px] bg-amber-100 text-amber-900 px-2 py-0.5 rounded-full font-bold";
+        badge.innerHTML = '<i class="fa-solid fa-sparkles text-amber-600 mr-1"></i>Gemini AI 生成模式';
+      }
+
+      const meta = strategyDescriptions[strategy] || { name: "學習策略", instruction: "依據主題結構進行整理分析。" };
+
+      let blocksHtml = `
+        <div class="mt-2 border border-slate-300 rounded-lg p-2.5 bg-white">
+          <div class="flex items-center justify-between border-b pb-1 mb-2">
+            <span class="strategy-guide-badge"><i class="fa-solid fa-shapes mr-1 text-emerald-600"></i> 學習策略：${meta.name}</span>
+            <div class="strategy-memo-box max-w-[420px] text-[9.5px]">
+              <strong>使用說明：</strong>${meta.instruction}
+            </div>
+          </div>
+          <div class="text-xs font-bold text-center text-slate-800 mb-2" contenteditable="true" title="點擊即可直接修改內文">
+            【探究主題】：${data.strategyCoreTitle || data.unitTitle} ➜ ${data.strategyFrameworkPrompt || (meta.name + '整理分析')}
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs">
+            ${(data.blocks || []).map(b => `
+              <div class="border border-slate-300 bg-slate-50/50 p-2 rounded flex flex-col justify-between">
+                <div>
+                  <div class="font-bold text-slate-700 border-b pb-0.5 mb-1" contenteditable="true">${b.title}</div>
+                  <p class="text-slate-600 mb-0.5 leading-snug" contenteditable="true">${b.prompt}</p>
+                  ${b.subHint ? `<div class="text-[9.5px] text-slate-400 mb-0.5" contenteditable="true">提示：${b.subHint}</div>` : ''}
+                </div>
+                <div>${createWriteLines(b.linesCount || 1)}</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>
+      `;
+
+      const criticalHtml = (data.criticalThinkingQuestions && data.criticalThinkingQuestions.length > 0) ? `
+        <div class="mt-2 space-y-1.5 text-xs">
+          ${data.criticalThinkingQuestions.map((q, i) => `
+            <div>
+              <span class="font-bold text-slate-800" contenteditable="true">${q.title || `思辨探究 ${i+1}`}：</span>
+              <p class="text-slate-600 mt-0.5 leading-snug" contenteditable="true">${q.question}</p>
+              ${createWriteLines(q.linesCount || 2)}
+            </div>
+          `).join('')}
+        </div>
+      ` : '';
+
+      const selHtml = data.selCivicReflection ? `
+        <div class="mt-2 text-xs">
+          <span class="font-bold text-emerald-900" contenteditable="true"><i class="fa-solid fa-heart mr-1 text-rose-600"></i> ${data.selCivicReflection.title || '公民生活實踐與生活調適 (SEL)'}：</span>
+          <p class="text-slate-600 mt-0.5 leading-snug" contenteditable="true">${data.selCivicReflection.question}</p>
+          ${createWriteLines(data.selCivicReflection.linesCount || 2)}
+        </div>
+      ` : '';
+
+      const rubricsHtml = `
+        <div class="mt-2 border border-slate-300 rounded p-1.5 bg-slate-50 text-[10px] no-print-rubric">
+          <div class="font-bold text-slate-800 border-b border-slate-200 pb-1 mb-1 flex items-center justify-between">
+            <span><i class="fa-solid fa-list-check text-emerald-700 mr-1"></i> 三等第素養評量表現規準 (Rubrics 指標)</span>
+            <span class="text-[9px] text-slate-400">供教師備課、觀課與評分規準參考 (點擊文字可編輯)</span>
+          </div>
+          <div class="grid grid-cols-3 gap-1.5 text-[9.5px]">
+            <div class="bg-emerald-50/80 p-1 rounded border border-emerald-200">
+              <span class="font-bold text-emerald-900">A 優異：</span><span class="text-slate-600" contenteditable="true">能精準運用思考工具剖析核心因果，並提出具批判性之公民行動反思。</span>
+            </div>
+            <div class="bg-amber-50/80 p-1 rounded border border-amber-200">
+              <span class="font-bold text-amber-900">B 良好：</span><span class="text-slate-600" contenteditable="true">能依據課文事實完成學習策略表格，並寫出合理探究結論與相應解答。</span>
+            </div>
+            <div class="bg-slate-100 p-1 rounded border border-slate-300">
+              <span class="font-bold text-slate-700">C 基礎：</span><span class="text-slate-600" contenteditable="true">能填寫部分課文事實，經同儕或教師適度提示後能修正完成學習單。</span>
+            </div>
+          </div>
+        </div>
+      `;
+
+      const footerStandardsHtml = data.curriculumStandards ? renderCurriculumFooterHtml(data.curriculumStandards) : '';
+
+      const fullHtml = `
+        <div class="no-print mb-2 p-2 bg-emerald-50 border border-emerald-200 rounded text-xs text-emerald-900 flex items-center justify-between shadow-sm">
+          <span class="flex items-center"><i class="fa-solid fa-pen-to-square text-emerald-600 mr-1.5 text-sm"></i> <strong>雙向動態微調：</strong>預覽區所有標題、問題與文字皆支援<strong>點擊直接修改編輯</strong>！修改後可直接列印或導出 Word。</span>
+          <span class="text-[10px] bg-emerald-700 text-white px-2 py-0.5 rounded font-bold">雙向編輯啟用中</span>
+        </div>
+
+        <div class="border-b-2 border-slate-900 pb-1.5 mb-1.5">
+          <div class="flex justify-between items-start">
+            <span class="text-[11px] font-bold text-slate-500 uppercase tracking-wider">國小社會領域 ‧ 素養導向深度探究</span>
+            <div class="flex items-center space-x-1 border border-slate-400 px-2 py-0.5 rounded text-[11px]">
+              <span class="font-bold text-slate-600">素養評量：</span>
+              <span class="text-slate-500">□ 優異 □ 良好 □ 待加強</span>
+            </div>
+          </div>
+          
+          <h1 class="serif-title text-xl font-bold text-center text-slate-900 mt-1 tracking-wide" contenteditable="true" title="點擊即可修改標題">
+            ${data.unitTitle}
+          </h1>
+
+          <div class="grid grid-cols-3 gap-2 mt-1.5 pt-1 border-t border-dashed border-slate-300 text-xs text-slate-700">
+            <div>班級：<span class="underline decoration-slate-400">＿＿＿＿班</span></div>
+            <div>座號：<span class="underline decoration-slate-400">＿＿＿＿號</span></div>
+            <div>姓名：<span class="underline decoration-slate-400">＿＿＿＿＿＿</span></div>
+          </div>
+        </div>
+
+        <div class="bg-amber-50/70 border-l-4 border-amber-500 p-2 text-xs text-slate-700 rounded-r leading-relaxed">
+          <span class="font-bold text-amber-900"><i class="fa-solid fa-compass mr-1"></i> 探究前哨站：</span>
+          <span contenteditable="true">${data.inquiryScenario}</span>
+        </div>
+
+        ${blocksHtml}
+        ${criticalHtml}
+        ${selHtml}
+        ${rubricsHtml}
+        ${footerStandardsHtml}
+
+        <div class="mt-1.5 flex justify-between items-center text-[9px] text-slate-400">
+          <div>◎ 本學習單依教育部 108 課綱與國小教科書學習策略模版規範設計</div>
+          <div>第 1 頁 / 共 1 頁</div>
+        </div>
+      `;
+
+      if (printArea) {
+        printArea.innerHTML = fullHtml;
+      }
+    }
+
+
     function renderWorksheet() {
       const unit = document.getElementById('input-unit').value || "氣候如何影響我們的生活？—地理位置影響臺灣各地的氣候";
       const summary = document.getElementById('input-summary').value || sampleData.summary;
@@ -2123,28 +2500,48 @@
               <\/script>
             
   <!-- API Key Setting Modal -->
+    <!-- API Key Setting Modal with Direct Application Guide -->
   <div id="api-key-modal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center hidden p-4">
     <div class="bg-white rounded-2xl max-w-md w-full p-5 space-y-4 shadow-2xl border border-slate-200">
       <div class="flex justify-between items-center border-b pb-3">
         <h3 class="font-bold text-slate-900 text-sm flex items-center">
           <i class="fa-solid fa-key text-emerald-600 mr-2"></i> 設定 Google Gemini API Key
         </h3>
-        <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark"></i></button>
+        <button onclick="closeApiKeyModal()" class="text-slate-400 hover:text-slate-600"><i class="fa-solid fa-xmark text-base"></i></button>
       </div>
-      <p class="text-xs text-slate-600 leading-relaxed">
-        請填入您的免費 Google Gemini API Key，即可發動 AI 多模態識圖、自動學習單構思與 40 分鐘教案產出。金鑰會安全儲存於您個人的瀏覽器中。
-      </p>
+
+      <!-- Free API Key Application Guide Card for New Users -->
+      <div class="bg-emerald-50/90 border border-emerald-200 rounded-xl p-3.5 space-y-2 text-xs">
+        <div class="font-bold text-emerald-950 flex items-center justify-between">
+          <span><i class="fa-solid fa-wand-magic-sparkles text-emerald-600 mr-1.5"></i> 還沒有 API Key 嗎？(永久免費)</span>
+          <span class="text-[10px] bg-emerald-200 text-emerald-900 font-bold px-2 py-0.5 rounded-full">1 分鐘完成</span>
+        </div>
+        <p class="text-slate-600 text-[11px] leading-relaxed">
+          Google 提供永久免費的 Gemini API 使用額度（每日 1,500 次），請點擊下方按鈕前往 Google 官方申請：
+        </p>
+        <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" class="w-full py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition flex items-center justify-center shadow-sm">
+          <i class="fa-brands fa-google mr-1.5 text-amber-300"></i> 前往 Google AI Studio 免費申請 API Key <i class="fa-solid fa-arrow-up-right-from-square ml-1.5 text-[10px]"></i>
+        </a>
+        <div class="text-[10.5px] text-slate-600 space-y-0.5 pt-1.5 border-t border-emerald-200/80">
+          <div><strong>快速 3 步驟：</strong></div>
+          <div>① 點擊上方按鈕（使用一般 Google 帳號免費登入）</div>
+          <div>② 點擊頁面上的 <span class="bg-white border border-slate-300 px-1 py-0.2 rounded font-bold text-slate-800">Create API Key</span> 藍色按鈕</div>
+          <div>③ 複製產生的金鑰，貼回下方輸入框，點擊「儲存金鑰」！</div>
+        </div>
+      </div>
+
       <div>
-        <label class="block text-xs font-bold text-slate-700 mb-1">您的 Gemini API Key：</label>
-        <input type="password" id="custom-api-key-input" class="w-full text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 p-2.5 border" placeholder="AIzaSy...">
+        <label class="block text-xs font-bold text-slate-700 mb-1">貼上您的 Gemini API Key：</label>
+        <input type="password" id="custom-api-key-input" class="w-full text-xs rounded-lg border-slate-300 focus:ring-emerald-500 focus:border-emerald-500 p-2.5 border font-mono" placeholder="AIzaSy...">
       </div>
-      <div class="flex justify-end space-x-2 pt-2">
-        <button onclick="saveApiKey()" class="px-4 py-2 bg-emerald-700 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition">
-          <i class="fa-solid fa-floppy-disk mr-1"></i> 儲存金鑰並啟用 AI
+
+      <div class="flex justify-end space-x-2 pt-1">
+        <button onclick="saveApiKey()" class="w-full py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg text-xs font-black transition flex items-center justify-center shadow">
+          <i class="fa-solid fa-floppy-disk mr-1.5"></i> 儲存金鑰並發動 AI 功能
         </button>
       </div>
     </div>
-  </div>
+  </div>>
 
 </body>
             </html>
@@ -2916,6 +3313,22 @@
       const unit = document.getElementById('input-unit').value.trim();
       const summary = document.getElementById('input-summary').value.trim();
       const strategy = getSelectedStrategy();
+
+      const apiKey = getStoredApiKey();
+
+      // Zero-setup Smart Engine: Instant 0.1s generation when no user API Key is set
+      if (!apiKey) {
+        showToast("✨ 已使用智慧備課引擎在 0.1 秒內極速生成學習單與 40min 教案！", "success");
+        const smartData = generateSmartFallbackWorksheet(unit, summary, strategy);
+        latestTeacherGuide = smartData.teacherGuide;
+        if (latestTeacherGuide) {
+          const btn = document.getElementById('btn-teacher-guide');
+          if (btn) btn.classList.remove('hidden');
+        }
+        renderAiWorksheet(smartData, strategy);
+        if (window.innerWidth < 768) setViewMode('preview');
+        return;
+      }
       const difficulty = getSelectedDifficulty();
 
       if (!unit && !uploadedImageBase64) {
